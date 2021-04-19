@@ -1,4 +1,6 @@
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.desktop.AppManager
+import androidx.compose.desktop.AppWindow
 import androidx.compose.desktop.Window
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,15 +15,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Notifier
+import java.awt.image.BufferedImage
 
 var clicked = false
+val notifier = Notifier()
 fun main() = Window {
     BasicsCodelabTheme(darkTheme = null) {
         var text by remember { mutableStateOf("Hello, World!") }
+        var confirm by remember { mutableStateOf(false) }
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
@@ -39,6 +48,18 @@ fun main() = Window {
                         "Goodbuy"
                     }
                     clicked = !clicked
+                    AppWindow(size = IntSize(250, 250), icon = getMyAppIcon(), resizable = false).also { window ->
+                        window.keyboard.setShortcut(Key.Escape) {
+                            window.close()
+                        }
+                    }.show {
+                        Text(
+                            "I'm popup! Click me to close",
+                            style = typography.h4,
+                            modifier = Modifier.padding(8.dp).clickable {
+                                AppManager.focusedWindow?.close()
+                            })
+                    }
                 }) {
                 Text("Click me")
             }
@@ -61,9 +82,7 @@ fun main() = Window {
             Spacer(Modifier.height(24.dp))
             MyScreenContent(listOf("Android", "IOS"))
             PhotographerCard {
-                if (it) {
-                    text += "true"
-                }
+                confirm = it
             }
             LayoutsCodelab()
         }
@@ -89,7 +108,6 @@ private val DarkColors = darkColors(
     primary = Color.Gray,
     primaryVariant = Color.LightGray,
     secondary = Color.White,
-    background = Color.Green
 )
 
 private val LightColors = lightColors(
@@ -117,12 +135,40 @@ fun BasicsCodelabTheme(
     }
 }
 
+fun getMyAppIcon(): BufferedImage {
+    val size = 256
+    val image = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
+    val graphics = image.createGraphics()
+    graphics.color = java.awt.Color(125, 125, 125)
+    graphics.fillOval(0, 0, size, size)
+    graphics.dispose()
+    return image
+}
+
 @Composable
 fun PhotographerCard(onDialogClose: (b: Boolean) -> Unit) {
+    val dialogState = remember { mutableStateOf(false) }
     val (showDialog, setShowDialog) = remember { mutableStateOf(false) }
     DialogDemo(showDialog) { show ->
         setShowDialog(false)
         onDialogClose.invoke(show)
+    }
+    if (dialogState.value) {
+        Dialog(
+            onDismissRequest = { dialogState.value = false }
+        ) {
+            Column {
+                Text(text = "Location")
+                Button(
+                    onClick = {
+                        notifier.notify("Hello", "World")
+                        dialogState.value = false
+                    }
+                ) {
+                    Text(text = "Close app")
+                }
+            }
+        }
     }
     Row(
         modifier = Modifier
@@ -130,7 +176,7 @@ fun PhotographerCard(onDialogClose: (b: Boolean) -> Unit) {
             .clip(RoundedCornerShape(4.dp))
             .background(MaterialTheme.colors.surface)
             .clickable(onClick = {
-                setShowDialog(true)
+                dialogState.value = true
             })
             .padding(16.dp)
     ) {
@@ -144,7 +190,7 @@ fun PhotographerCard(onDialogClose: (b: Boolean) -> Unit) {
         Column {
             Text("Alfred Sisley", fontWeight = FontWeight.Bold)
             CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.medium) {
-                Text("3 minutes ago", style = MaterialTheme.typography.body2)
+                Text("3 minutes ago", style = typography.body2)
             }
         }
     }
